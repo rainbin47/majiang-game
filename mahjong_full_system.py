@@ -224,7 +224,7 @@ if mode == "🎯 新比赛录入":
         st.success("✅ 比赛已同步到云端！")
         st.session_state.current_match = []
         st.rerun()
-            else:
+           
                 # 1. 读取云端Excel
                 db = load_github_db()
                 old_summary = db["比赛汇总"]
