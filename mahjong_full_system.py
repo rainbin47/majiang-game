@@ -7,35 +7,47 @@ import os
 import base64
 import requests
 
-# ====================== 零配置，直接用 ======================
-# 你的GitHub仓库信息（自动识别，不用改）
-GITHUB_REPO = "rainbin47/majiang-game"  # 比如：xxx/majiang-game
-GITHUB_TOKEN = st.secrets["github_token"]  # 后面教你怎么加
+# ====================== 配置区（改成你自己的） ======================
+GITHUB_REPO = "rainbin47/majiang-game"  # 比如：zhangsan/majiang-game
+GITHUB_TOKEN = st.secrets["github_token"]
 DB_FILE = "麻坛所有比赛数据.xlsx"
 
-# 读取GitHub上的Excel
+# ====================== 修复后的GitHub读写函数 ======================
 def load_github_db():
+    """从GitHub下载最新的Excel"""
     url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DB_FILE}"
     res = requests.get(url)
     with open(DB_FILE, "wb") as f:
         f.write(res.content)
+    # 读取所有sheet
     return pd.read_excel(DB_FILE, sheet_name=None)
 
-# 保存到GitHub的Excel
 def save_github_db():
+    """保存到GitHub，加错误提示"""
+    # 1. 读取本地文件
     with open(DB_FILE, "rb") as f:
         content = base64.b64encode(f.read()).decode()
+    
+    # 2. 获取文件最新sha
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    # 获取文件sha
     res = requests.get(url, headers=headers)
+    if res.status_code != 200:
+        st.error(f"获取文件失败：{res.json()['message']}")
+        return False
     sha = res.json()["sha"]
-    # 提交更新
-    requests.put(url, headers=headers, json={
-        "message": "更新比赛数据",
+    
+    # 3. 提交到GitHub
+    res = requests.put(url, headers=headers, json={
+        "message": f"更新比赛数据 {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "content": content,
         "sha": sha
     })
+    if res.status_code in [200, 201]:
+        return True
+    else:
+        st.error(f"提交失败：{res.json()['message']}")
+        return False
 
 # ====================== 页面配置和美化 ======================
 st.set_page_config(
@@ -133,7 +145,6 @@ with st.sidebar:
     mode = st.radio("功能模式", ["🎯 新比赛录入", "📜 历史比赛查询"])
 
 # ---------------------- 新比赛录入 ----------------------
-# ---------------------- 新比赛录入 ----------------------
 if mode == "🎯 新比赛录入":
     with st.sidebar:
         st.header("📝 对局录入")
@@ -215,47 +226,52 @@ if mode == "🎯 新比赛录入":
                 st.rerun()
         
         st.divider()
-        # 保存到云端按钮（正确缩进版）
+        # 修复后的保存到云端按钮
         if st.button("☁️ 保存到云端", type="secondary", use_container_width=True):
             if len(st.session_state.current_match) == 0:
                 st.error("还没有录入对局！")
             else:
-                # 1. 读取云端Excel
-                db = load_github_db()
-                old_summary = db["比赛汇总"]
-                # 2. 计算本场排名
-                df = pd.DataFrame(st.session_state.current_match)
-                total_scores = [df[col].sum() for col in score_cols]
-                rank_result = sorted(zip(player_names, total_scores), key=lambda x: x[1], reverse=True)
-                # 3. 追加汇总
-                summary_row = pd.DataFrame([{
-                    "比赛名称": st.session_state.match_name,
-                    "比赛日期": match_date.strftime("%Y-%m-%d"),
-                    "第1名": rank_result[0][0], "第1名名次分": 5,
-                    "第2名": rank_result[1][0], "第2名名次分": 3,
-                    "第3名": rank_result[2][0], "第3名名次分": 2,
-                    "第4名": rank_result[3][0], "第4名名次分": 1
-                }])
-                new_summary = pd.concat([old_summary, summary_row], ignore_index=True)
-                # 4. 保存到Excel
-                with pd.ExcelWriter(DB_FILE) as writer:
-                    new_summary.to_excel(writer, sheet_name="比赛汇总", index=False)
-                    df.to_excel(writer, sheet_name=f"对局明细_{date_str}", index=False)
-                    # 保留原来的所有历史sheet
-                    for sheet_name, sheet_df in db.items():
-                        if sheet_name not in ["比赛汇总", f"对局明细_{date_str}"]:
-                            sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
-                # 5. 同步到GitHub
-                save_github_db()
-                st.cache_data.clear()
-                st.success("✅ 比赛已同步到云端！")
-                st.session_state.current_match = []
-                st.rerun()
+                with st.spinner("正在同步到云端..."):
+                    # 1. 读取云端所有数据
+                    db = load_github_db()
+                    # 2. 处理汇总表
+                    old_summary = db["比赛汇总"]
+                    df = pd.DataFrame(st.session_state.current_match)
+                    total_scores = [df[col].sum() for col in score_cols]
+                    rank_result = sorted(zip(player_names, total_scores), key=lambda x: x[1], reverse=True)
+                    summary_row = pd.DataFrame([{
+                        "比赛名称": st.session_state.match_name,
+                        "比赛日期": match_date.strftime("%Y-%m-%d"),
+                        "第1名": rank_result[0][0], "第1名名次分": 5,
+                        "第2名": rank_result[1][0], "第2名名次分": 3,
+                        "第3名": rank_result[2][0], "第3名名次分": 2,
+                        "第4名": rank_result[3][0], "第4名名次分": 1
+                    }])
+                    new_summary = pd.concat([old_summary, summary_row], ignore_index=True)
+                    
+                    # 3. 保存所有sheet到本地Excel
+                    with pd.ExcelWriter(DB_FILE) as writer:
+                        new_summary.to_excel(writer, sheet_name="比赛汇总", index=False)
+                        # 保存本场明细
+                        df.to_excel(writer, sheet_name=f"对局明细_{date_str}", index=False)
+                        # 保留所有历史sheet
+                        for sheet_name, sheet_df in db.items():
+                            if sheet_name not in ["比赛汇总", f"对局明细_{date_str}"]:
+                                sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    
+                    # 4. 同步到GitHub
+                    success = save_github_db()
+                    if success:
+                        st.cache_data.clear()
+                        st.success("✅ 比赛已成功同步到GitHub！")
+                        st.session_state.current_match = []
+                        st.rerun()
         
         if st.button("🔄 新建比赛", use_container_width=True):
             st.session_state.current_match = []
             st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
             st.rerun()
+
     # 右侧展示
     df = pd.DataFrame(st.session_state.current_match)
     st.subheader("📊 本场实时总得分")
@@ -298,7 +314,8 @@ if mode == "🎯 新比赛录入":
 # ---------------------- 历史比赛查询 ----------------------
 else:
     st.header("📜 云端历史比赛查询")
-    db = load_github_db()
+    with st.spinner("正在加载云端数据..."):
+        db = load_github_db()
     summary_df = db["比赛汇总"]
     if len(summary_df) == 0:
         st.info("云端暂无历史比赛")
