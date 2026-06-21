@@ -215,8 +215,15 @@ if mode == "🎯 新比赛录入":
         
         st.divider()
         if st.button("☁️ 保存到云端", type="secondary", use_container_width=True):
-            if len(st.session_state.current_match) == 0:
-                st.error("还没有录入对局！")
+    if len(st.session_state.current_match) == 0:
+        st.error("还没有录入对局！")
+    else:
+        # 原来的保存代码...
+        save_github_db()
+        st.cache_data.clear()  # 加这行，清除缓存
+        st.success("✅ 比赛已同步到云端！")
+        st.session_state.current_match = []
+        st.rerun()
             else:
                 # 1. 读取云端Excel
                 db = load_github_db()
