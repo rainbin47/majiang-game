@@ -9,7 +9,7 @@ import requests
 
 # ====================== 零配置，直接用 ======================
 # 你的GitHub仓库信息（自动识别，不用改）
-GITHUB_REPO = "你的GitHub用户名/你的仓库名"  # 比如：xxx/majiang-game
+GITHUB_REPO = "rainbin47/majiang-game"  # 比如：xxx/majiang-game
 GITHUB_TOKEN = st.secrets["github_token"]  # 后面教你怎么加
 DB_FILE = "麻坛所有比赛数据.xlsx"
 
