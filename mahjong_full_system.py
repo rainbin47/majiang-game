@@ -133,6 +133,7 @@ with st.sidebar:
     mode = st.radio("功能模式", ["🎯 新比赛录入", "📜 历史比赛查询"])
 
 # ---------------------- 新比赛录入 ----------------------
+# ---------------------- 新比赛录入 ----------------------
 if mode == "🎯 新比赛录入":
     with st.sidebar:
         st.header("📝 对局录入")
@@ -214,7 +215,8 @@ if mode == "🎯 新比赛录入":
                 st.rerun()
         
         st.divider()
-                if st.button("☁️ 保存到云端", type="secondary", use_container_width=True):
+        # 保存到云端按钮（正确缩进版）
+        if st.button("☁️ 保存到云端", type="secondary", use_container_width=True):
             if len(st.session_state.current_match) == 0:
                 st.error("还没有录入对局！")
             else:
@@ -245,7 +247,7 @@ if mode == "🎯 新比赛录入":
                             sheet_df.to_excel(writer, sheet_name=sheet_name, index=False)
                 # 5. 同步到GitHub
                 save_github_db()
-                st.cache_data.clear()  # 清除缓存，这行和上面的代码对齐，缩进4个空格
+                st.cache_data.clear()
                 st.success("✅ 比赛已同步到云端！")
                 st.session_state.current_match = []
                 st.rerun()
@@ -254,7 +256,6 @@ if mode == "🎯 新比赛录入":
             st.session_state.current_match = []
             st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
             st.rerun()
-
     # 右侧展示
     df = pd.DataFrame(st.session_state.current_match)
     st.subheader("📊 本场实时总得分")
