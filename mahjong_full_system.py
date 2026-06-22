@@ -29,9 +29,9 @@ HU_CARDS_DICT = {
         "五门齐": 10, "一色清龙": 10, "一色步步高高": 10, "一色节节高": 10, "两头蛇": 10, 
         "十三不靠": 10, "混一色": 10, "混带幺": 10, "海底捞月": 10, "杠上开花": 10, 
         "杠上炮": 10, "抢杠": 10, "全中": 10, "全大": 10, "全小": 10, "无番胡": 10, 
-        "碰碰胡": 10, "三连刻": 10, "三色三同刻": 10, "全求人": 10, "三姊妹": 10,
+        "碰碰胡": 10, "三连刻": 10, "三色三同刻": 10, "全求人": 10, "三姊妹": 10
     },
-   "5 番 略展身手牌型": {
+    "5 番 略展身手牌型": {
         "门清自摸": 5, "小于五": 5, "大于五": 5, "三色花龙": 5, "三色三同顺": 5, "三色三节高": 5
     },
     "4 番 新晋高手牌型": {
@@ -44,7 +44,7 @@ HU_CARDS_DICT = {
         "自摸": 2, "断幺九": 2, "幺九刻": 2, "暗杠": 2, "单吊边嵌": 2
     },
     "1 番 风起青萍牌型": {
-       "门前清": 1, "缺字": 1, "缺一门": 1, "平胡": 1, "明杠": 1, "姊妹花": 1,
+        "门前清": 1, "缺字": 1, "缺一门": 1, "平胡": 1, "明杠": 1, "姊妹花": 1,
         "连六": 1, "单吊": 1, "圈风刻": 1, "门风刻": 1, "258将": 1
     }
 }
@@ -98,7 +98,7 @@ div[data-testid="metric-container"]:hover { transform: translateY(-6px); box-sha
 .stDataFrame { border-radius: 16px !important; overflow: hidden !important; box-shadow: 0 8px 25px rgba(0,0,0,0.04) !important; background: white; }
 h2, h3 { color: #451a03 !important; font-weight: 800 !important; border-left: 5px solid #b91c1c !important; padding-left: 14px !important; margin-top: 35px !important; margin-bottom: 22px !important; }
 
-/* 🌟 【核心重构UI】: 复选框平铺矩阵的高级卡片质感 */
+/* 复选框平铺矩阵的高级卡片质感 */
 div[data-testid="stCheckbox"] {
     background: rgba(255, 255, 255, 0.65) !important;
     border: 1px solid rgba(46, 37, 32, 0.08) !important;
@@ -108,20 +108,17 @@ div[data-testid="stCheckbox"] {
     box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* 鼠标悬浮反馈 */
 div[data-testid="stCheckbox"]:hover {
     background: rgba(255, 255, 255, 0.95) !important;
     border-color: #b91c1c !important;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(185, 28, 28, 0.08) !important;
 }
-/* 当复选框内部的input被选中时，让卡片带上优雅的淡红框（通过Streamlit底层结构模拟高亮） */
 div[data-testid="stCheckbox"] label p {
     font-weight: 600 !important;
     color: #451a03 !important;
 }
 
-/* 针对手机端和PC端的矩阵自适应 */
 @media (max-width: 768px) {
     .big-title { font-size: 1.9rem !important; }
     .stButton>button { padding: 14px 20px !important; }
@@ -136,11 +133,17 @@ st.markdown('<div class="sub-title">— 尊享矩阵点兵数据大盘 —</div>
 MAX_ROUNDS = 99
 POSITION_ORDER = ["东风", "南风", "西风", "北风"]
 PLAYER_LIST = ["奶猫", "农少", "老王", "老野", "老蒋", "老潘", "阿狗", "孙军"]
-DEALER_LEVELS = {"第一庄（2倍）": 2, "第二庄（4倍）": 4, "第三庄及以上（8倍）": 8}
+DEALER_LEVELS = ["第一庄（2倍）", "第二庄（4倍）", "第三庄及以上（8倍）"]
+DEALER_MULTI_DICT = {"第一庄（2倍）": 2, "第二庄（4倍）": 4, "第三庄及以上（8倍）": 8}
 HU_TYPES = ["自摸", "放炮", "流局"]
 
+# ====================== 🚀 智能裁判Session状态初始化 ======================
 if "current_match" not in st.session_state: st.session_state.current_match = []
 if "match_name" not in st.session_state: st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
+
+# 庄家和连庄状态的智能状态追踪
+if "dealer_pos_idx" not in st.session_state: st.session_state.dealer_pos_idx = 0  # 默认东风位上庄
+if "dealer_level_idx" not in st.session_state: st.session_state.dealer_level_idx = 0  # 默认第一庄
 
 with st.sidebar:
     st.markdown("<h2 style='color:#fef3c7!important;border-left:5px solid #d97706!important;'>🧭 控制中心</h2>", unsafe_allow_html=True)
@@ -161,6 +164,7 @@ if mode == "🎯 新比赛录入":
             st.error("已达上限，请先点击保存到云端！")
             st.stop()
         
+        # 固定席位选手绑定
         player_east = st.selectbox("东风位选手", PLAYER_LIST, index=0)
         player_south = st.selectbox("南风位选手", PLAYER_LIST, index=1)
         player_west = st.selectbox("西风位选手", PLAYER_LIST, index=2)
@@ -170,45 +174,50 @@ if mode == "🎯 新比赛录入":
         player_names = list(pos_to_player.values())
         score_cols = [f"{name}({pos})" for pos, name in pos_to_player.items()]
         
-        current_dealer_player = st.selectbox("当前局庄家", player_names, index=0)
-        current_dealer_pos = player_to_pos[current_dealer_player]
-        dealer_level = st.selectbox("庄家连庄状态", list(DEALER_LEVELS.keys()), index=0)
-        dealer_multi = DEALER_LEVELS[dealer_level]
+        # 🤖 智能推算当前的推荐庄家名称
+        rec_dealer_pos = POSITION_ORDER[st.session_state.dealer_pos_idx]
+        rec_dealer_name = pos_to_player[rec_dealer_pos]
+        rec_dealer_idx = player_names.index(rec_dealer_name)
         
-        hu_type = st.selectbox("本局结果判定", HU_TYPES)
+        # 庄家选择器（支持系统智能推荐，亦支持手动覆盖）
+        current_dealer_player = st.selectbox("当前局庄家", player_names, index=rec_dealer_idx)
+        current_dealer_pos = player_to_pos[current_dealer_player]
+        
+        # 连庄状态选择器（系统自动判定步进，支持手动覆盖）
+        dealer_level = st.selectbox("庄家连庄状态", DEALER_LEVELS, index=st.session_state.dealer_level_idx)
+        dealer_multi = DEALER_MULTI_DICT[dealer_level]
+        
+        hu_type = st.selectbox("本局结果判定", HU_TYPES, key="input_hu_type")
         fan = 0; hu_player = ""; pao_player = ""; selected_patterns_str = "/"
         
         if hu_type != "流局":
-            hu_player = st.selectbox("胡牌获胜选手", player_names, index=0)
+            hu_player = st.selectbox("胡牌获胜选手", player_names, index=0, key="input_hu_player")
             hu_pos = player_to_pos[hu_player]
             if hu_type == "放炮":
                 pao_candidates = [p for p in player_names if p != hu_player]
-                pao_player = st.selectbox("点炮选手", pao_candidates, index=0)
+                pao_player = st.selectbox("点炮选手", pao_candidates, index=0, key="input_pao_player")
                 pao_pos = player_to_pos[pao_player]
 
-    # 右侧展示区与牌型选择矩阵
     df = pd.DataFrame(st.session_state.current_match)
     
-    # 🌟 【核心交互升级】：当不是流局时，在正中央渲染“全平铺牌型点兵席”
+    # 🌟 矩阵平铺牌型点兵席
     if hu_type != "流局":
         st.markdown("### 🀄 雀神点兵 · 牌型选择矩阵")
         st.caption("✨ 请直接勾选下方对应的对局牌型（可多选组合），系统会全自动精算累计总番数：")
         
         checked_patterns = []
-        # 将常用的小番数默认展开，高大番数默认折叠以保持界面档次感
         for title, cards in HU_CARDS_DICT.items():
-            is_expanded = "1 番" in title or "2 番" in title or "5 番" in title or "10 番" in title
+            is_expanded = any(k in title for k in ["1 番", "2 番", "3 番", "4 番", "5 番", "10 番"])
             with st.expander(f"✨ {title}", expanded=is_expanded):
-                # 核心响应式自适应网格：PC端4列，手机端自动变2列
                 cols_matrix = st.columns(4)
                 idx = 0
                 for name, score in cards.items():
                     with cols_matrix[idx % 4]:
-                        if st.checkbox(f"{name} ({score}番)", key=f"chk_{title}_{name}"):
+                        # 通过局号动态生成 key，确保每次提交本局重置刷新时，所有勾选状态自动归零清空！
+                        if st.checkbox(f"{name} ({score}番)", key=f"chk_{round_num}_{title}_{name}"):
                             checked_patterns.append((name, score))
                     idx += 1
         
-        # 实时精算反馈区块
         if checked_patterns:
             fan = sum([item[1] for item in checked_patterns])
             selected_patterns_str = " + ".join([item[0] for item in checked_patterns])
@@ -227,15 +236,15 @@ if mode == "🎯 新比赛录入":
             </div>
             """, unsafe_allow_html=True)
 
-    # 提交按钮放入侧边栏或主界面底部均可，此处将其置于侧边栏下方以便两端操作
     with st.sidebar:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ 提交本局", type="primary", use_container_width=True):
                 scores = {"东风": 0, "南风": 0, "西风": 0, "北风": 0}
+                dealer_hu = (hu_type != "流局" and hu_pos == current_dealer_pos)
+                
                 if hu_type != "流局" and fan >= 0:
                     other_pos = [p for p in POSITION_ORDER if p != hu_pos]
-                    dealer_hu = (hu_pos == current_dealer_pos)
                     if hu_type == "自摸":
                         for p in other_pos:
                             base = fan * 2
@@ -253,18 +262,53 @@ if mode == "🎯 新比赛录入":
                 
                 round_data = {
                     "局号": round_num, "庄家": current_dealer_player, "连庄次数": dealer_level, "庄倍数": dealer_multi,
-                    "本局结果": hu_type, 
-                    "胡牌牌型": selected_patterns_str,  # ⭐ 新增并完美对齐的字段
+                    "本局结果": hu_type, "胡牌牌型": selected_patterns_str, 
                     "胡牌选手": hu_player, "放炮选手": pao_display, "番数": fan,
                     score_cols[0]: scores["东风"], score_cols[1]: scores["南风"],
                     score_cols[2]: scores["西风"], score_cols[3]: scores["北风"]
                 }
                 st.session_state.current_match.append(round_data)
+                
+                # 🤖 【智能裁判算法】：计算下一局的庄家和连庄倍数
+                current_dealer_pos_idx = POSITION_ORDER.index(current_dealer_pos)
+                
+                if hu_type == "流局" or dealer_hu:
+                    # 庄家胡牌或流局 -> 连庄
+                    st.session_state.dealer_level_idx = min(st.session_state.dealer_level_idx + 1, len(DEALER_LEVELS) - 1)
+                    # 庄家不变
+                    st.session_state.dealer_pos_idx = current_dealer_pos_idx
+                else:
+                    # 闲家胡牌（下庄） -> 轮庄重置
+                    st.session_state.dealer_level_idx = 0
+                    st.session_state.dealer_pos_idx = (current_dealer_pos_idx + 1) % 4
+                
+                # 清理输入残留
+                if "input_hu_player" in st.session_state: del st.session_state["input_hu_player"]
+                if "input_pao_player" in st.session_state: del st.session_state["input_pao_player"]
+                
                 st.rerun()
         
         with col2:
             if st.button("↩️ 撤销上局", use_container_width=True) and len(st.session_state.current_match) > 0:
                 st.session_state.current_match.pop()
+                # 撤销时将轮庄逻辑同步回退一步
+                if len(st.session_state.current_match) == 0:
+                    st.session_state.dealer_pos_idx = 0
+                    st.session_state.dealer_level_idx = 0
+                else:
+                    last_round = st.session_state.current_match[-1]
+                    last_dealer_p = last_round["庄家"]
+                    last_dealer_pos = player_to_pos[last_dealer_p]
+                    last_dealer_pos_idx = POSITION_ORDER.index(last_dealer_pos)
+                    last_hu_type = last_round["本局结果"]
+                    last_hu_p = last_round["胡牌选手"]
+                    
+                    if last_hu_type == "流局" or last_hu_p == last_dealer_p:
+                        st.session_state.dealer_level_idx = min(DEALER_LEVELS.index(last_round["连庄次数"]) + 1, len(DEALER_LEVELS) - 1)
+                        st.session_state.dealer_pos_idx = last_dealer_pos_idx
+                    else:
+                        st.session_state.dealer_level_idx = 0
+                        st.session_state.dealer_pos_idx = (last_dealer_pos_idx + 1) % 4
                 st.rerun()
         
         st.divider()
@@ -299,11 +343,15 @@ if mode == "🎯 新比赛录入":
                         st.cache_data.clear()
                         st.toast("🎉 数据和华丽牌型云端存盘成功！", icon="✅")
                         st.session_state.current_match = []
+                        st.session_state.dealer_pos_idx = 0
+                        st.session_state.dealer_level_idx = 0
                         st.rerun()
         
         if st.button("🔄 开辟全新比赛", use_container_width=True):
             st.session_state.current_match = []
             st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
+            st.session_state.dealer_pos_idx = 0
+            st.session_state.dealer_level_idx = 0
             st.rerun()
 
     # 下方实时计分看板与流水单
