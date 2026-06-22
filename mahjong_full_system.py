@@ -10,9 +10,11 @@ import requests
 # ====================== 配置区（改成你自己的） ======================
 GITHUB_REPO = "rainbin47/majiang-game"  
 DB_FILE = "麻坛所有比赛数据.xlsx"
-# ====================== 配置区（改成你自己的） ======================
-GITHUB_REPO = "rainbin47/majiang-game"  
-DB_FILE = "麻坛所有比赛数据.xlsx"
+
+# 👑 终极直接授权：把你的 Token 密文用双引号包起来，直接赋值
+GITHUB_TOKEN = "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"
+
+# ====================== 🀄 核心牌型番数精算字典 ======================
 
 # 👑 智能本地密匙兼容技术：直接把你的 Token 字符串赋值给变量
 GITHUB_TOKEN = "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"
