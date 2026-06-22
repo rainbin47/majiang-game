@@ -12,9 +12,48 @@ GITHUB_REPO = "rainbin47/majiang-game"
 GITHUB_TOKEN = st.secrets["github_token"]
 DB_FILE = "麻坛所有比赛数据.xlsx"
 
-# ====================== 修复后的GitHub读写函数 ======================
+# ====================== 🀄 核心牌型番数精算词典 ======================
+HU_CARDS_DICT = {
+    "50 番": {
+        "大四喜": 50, "大三元": 50, "孔雀东南飞": 50, "九莲宝灯": 50, "四暗刻": 50, 
+        "连七对": 50, "十三幺": 50, "清老头": 50, "绿一色": 50, "字一色": 50
+    },
+    "30 番": {
+        "小四喜": 30, "小三元": 30, "孔雀东南飞（小）": 30, "混老头": 30
+    },
+    "20 番": {
+        "清一色": 20, "清带幺": 20, "一色四步高": 20, "一色四同顺": 20, "一色四节高": 20, 
+        "三杠子": 20, "七小对": 20, "全将碰": 20
+    },
+    "10 番": {
+        "五门齐": 10, "一色清龙": 10, "一色步步高高": 10, "一色节节高": 10, "两头蛇": 10, 
+        "十三不靠": 10, "混一色": 10, "混带幺": 10, "海底捞月": 10, "杠上开花": 10, 
+        "杠上炮": 10, "抢杠": 10, "全中": 10, "全大": 10, "全小": 10, "无番胡": 10, 
+        "碰碰胡": 10, "三连刻": 10, "三色三同刻": 10, "全求人": 10
+    },
+    "5 番": {
+        "门清自摸": 5, "小于五": 5, "大于五": 5, "三色花龙": 5, "三色三同顺": 5, "三色三节高": 5
+    },
+    "2 番": {
+        "自摸": 2, "断幺九": 2, "幺九刻": 2, "暗杠": 2, "单吊边嵌": 2
+    },
+    "1 番": {
+        "门前清": 1, "缺字": 1, "缺一门": 1, "明杠": 1, "姊妹花": 1, 
+        "连六": 1, "单吊": 1, "圈风刻": 1, "门风刻": 1, "258将": 1
+    }
+}
+
+# 扁平化映射表，方便快速查找和渲染多选框
+ALL_HU_TYPES_OPTIONS = []
+HU_TYPE_TO_FAN = {}
+for category, cards in HU_CARDS_DICT.items():
+    for name, score in cards.items():
+        display_name = f"{name} ({score}番)"
+        ALL_HU_TYPES_OPTIONS.append(display_name)
+        HU_TYPE_TO_FAN[display_name] = score
+
+# ====================== GitHub 读写底层函数 ======================
 def load_github_db():
-    """从GitHub下载最新的Excel"""
     url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DB_FILE}"
     res = requests.get(url)
     with open(DB_FILE, "wb") as f:
@@ -22,10 +61,8 @@ def load_github_db():
     return pd.read_excel(DB_FILE, sheet_name=None)
 
 def save_github_db():
-    """保存到GitHub，加错误提示"""
     with open(DB_FILE, "rb") as f:
         content = base64.b64encode(f.read()).decode()
-    
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     res = requests.get(url, headers=headers)
@@ -33,7 +70,6 @@ def save_github_db():
         st.error(f"获取文件失败：{res.json()['message']}")
         return False
     sha = res.json()["sha"]
-    
     res = requests.put(url, headers=headers, json={
         "message": f"更新比赛数据 {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "content": content,
@@ -41,169 +77,38 @@ def save_github_db():
     })
     return res.status_code in [200, 201]
 
-# ====================== 👑 奢华重构：全局UI美化与自适应注入 ======================
-st.set_page_config(
-    page_title="雀神风云录 · 云端奢华版",
-    page_icon="🀄",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ====================== 全局UI奢华重构样式 ======================
+st.set_page_config(page_title="雀神风云录 · 智能番数精算版", page_icon="🀄", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-/* 全局典雅国风渐变背景 */
-.stApp {
-    background: linear-gradient(135deg, #f9f8f6 0%, #f1efe9 50%, #e6e3da 100%) !important;
-    font-family: "SF Pro Display", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-}
-
-/* 顶部奢华大标题 */
-.big-title {
-    background: linear-gradient(135deg, #7c1a1a 0%, #b91c1c 50%, #d97706 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-align: center;
-    font-size: 2.8rem;
-    font-weight: 900;
-    letter-spacing: 2px;
-    padding: 20px 0 10px 0;
-    margin-bottom: 5px;
-    filter: drop-shadow(0px 4px 10px rgba(185,28,28,0.15));
-}
-.sub-title {
-    text-align: center;
-    color: #78350f;
-    font-size: 1rem;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    margin-bottom: 35px;
-    opacity: 0.8;
-}
-
-/* 侧边栏奢华美化 */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #1e1b18 0%, #2e2520 100%) !important;
-    border-right: 1px solid rgba(217, 119, 6, 0.2);
-}
-[data-testid="stSidebar"] p, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] span {
-    color: #f3f4f6 !important;
-}
-/* 侧边栏单选框高级感 */
-[data-testid="stSidebar"] div[role="radiogroup"] label {
-    background: rgba(255,255,255,0.05);
-    border-radius: 10px;
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    transition: all 0.3s;
-    border: 1px solid transparent;
-}
-[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
-    background: rgba(217, 119, 6, 0.15);
-    border: 1px solid rgba(217, 119, 6, 0.3);
-}
-
-/* 核心毛玻璃卡片（自适应） */
-div[data-testid="metric-container"], .custom-card {
-    background: rgba(255, 255, 255, 0.75) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 20px !important;
-    padding: 24px 20px !important;
-    border: 1px solid rgba(255, 255, 255, 0.6) !important;
-    box-shadow: 0 10px 30px rgba(46, 37, 32, 0.05) !important;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-div[data-testid="metric-container"]:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 40px rgba(185, 28, 28, 0.12) !important;
-    border: 1px solid rgba(217, 119, 6, 0.4) !important;
-}
-
-/* 高级按钮设计（包含流光质感） */
-.stButton>button {
-    background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%) !important;
-    color: #fef3c7 !important;
-    border-radius: 14px !important;
-    border: 1px solid #b45309 !important;
-    font-weight: 600 !important;
-    letter-spacing: 1px;
-    padding: 12px 24px !important;
-    box-shadow: 0 4px 15px rgba(153,27,27,0.25) !important;
-    transition: all 0.3s ease !important;
-    width: 100%;
-}
-.stButton>button:hover {
-    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important;
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 8px 25px rgba(185,28,28,0.4) !important;
-}
-
-/* 次要/辅助按钮（如撤销、新建等） */
-div[data-testid="stButton"] button[p-bgcolor="secondary"] {
-    background: transparent !important;
-    color: #7f1d1d !important;
-    border: 1px solid #7f1d1d !important;
-}
-
-/* 数据表格高级化圆角隐藏溢出 */
-.stDataFrame {
-    border-radius: 16px !important;
-    overflow: hidden !important;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.04) !important;
-    background: white;
-}
-
-/* H2, H3 华丽缎带标题 */
-h2, h3 {
-    color: #451a03 !important;
-    font-weight: 800 !important;
-    border-left: 5px solid #b91c1c !important;
-    padding-left: 14px !important;
-    margin-top: 35px !important;
-    margin-bottom: 22px !important;
-    letter-spacing: 1px;
-}
-
-/* 针对手机端和PC端的自适应补充媒体查询 */
-@media (max-width: 768px) {
-    .big-title {
-        font-size: 1.9rem !important;
-        padding-top: 10px;
-    }
-    .sub-title {
-        font-size: 0.8rem !important;
-        letter-spacing: 2px !important;
-        margin-bottom: 20px;
-    }
-    div[data-testid="metric-container"] {
-        padding: 16px 12px !important;
-        margin-bottom: 12px !important;
-    }
-    /* 手机端按钮加大防误触 */
-    .stButton>button {
-        padding: 14px 20px !important;
-    }
-}
+.stApp { background: linear-gradient(135deg, #f9f8f6 0%, #f1efe9 50%, #e6e3da 100%) !important; font-family: "SF Pro Display", sans-serif; }
+.big-title { background: linear-gradient(135deg, #7c1a1a 0%, #b91c1c 50%, #d97706 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; font-size: 2.8rem; font-weight: 900; padding: 20px 0 5px 0; filter: drop-shadow(0px 4px 10px rgba(185,28,28,0.15)); }
+.sub-title { text-align: center; color: #78350f; font-size: 1rem; letter-spacing: 4px; margin-bottom: 35px; opacity: 0.8; }
+[data-testid="stSidebar"] { background: linear-gradient(180deg, #1e1b18 0%, #2e2520 100%) !important; border-right: 1px solid rgba(217, 119, 6, 0.2); }
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label { color: #f3f4f6 !important; }
+div[data-testid="metric-container"], .custom-card { background: rgba(255, 255, 255, 0.75) !important; backdrop-filter: blur(12px); border-radius: 20px !important; padding: 24px 20px !important; border: 1px solid rgba(255, 255, 255, 0.6) !important; box-shadow: 0 10px 30px rgba(46, 37, 32, 0.05) !important; transition: all 0.4s ease; }
+div[data-testid="metric-container"]:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(185, 28, 28, 0.12) !important; border: 1px solid rgba(217, 119, 6, 0.4) !important; }
+.stButton>button { background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%) !important; color: #fef3c7 !important; border-radius: 14px !important; border: 1px solid #b45309 !important; font-weight: 600 !important; padding: 12px 24px !important; box-shadow: 0 4px 15px rgba(153,27,27,0.25) !important; width: 100%; transition: all 0.3s; }
+.stButton>button:hover { background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(185,28,28,0.4) !important; }
+.stDataFrame { border-radius: 16px !important; overflow: hidden !important; box-shadow: 0 8px 25px rgba(0,0,0,0.04) !important; background: white; }
+h2, h3 { color: #451a03 !important; font-weight: 800 !important; border-left: 5px solid #b91c1c !important; padding-left: 14px !important; margin-top: 35px !important; margin-bottom: 22px !important; }
+@media (max-width: 768px) { .big-title { font-size: 1.9rem !important; } .stButton>button { padding: 14px 20px !important; } }
 </style>
 """, unsafe_allow_html=True)
 
-# 渲染精美头部
 st.markdown('<div class="big-title">🀄 雀神风云录</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">— 云端尊享数据大盘 —</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">— 尊享番数智能精算大盘 —</div>', unsafe_allow_html=True)
 
-# 业务通用静态变量配置
 MAX_ROUNDS = 99
 POSITION_ORDER = ["东风", "南风", "西风", "北风"]
 PLAYER_LIST = ["奶猫", "农少", "老王", "老野", "老蒋", "老潘", "阿狗", "孙军"]
 DEALER_LEVELS = {"第一庄（2倍）": 2, "第二庄（4倍）": 4, "第三庄及以上（8倍）": 8}
 HU_TYPES = ["自摸", "放炮", "流局"]
 
-if "current_match" not in st.session_state:
-    st.session_state.current_match = []
-if "match_name" not in st.session_state:
-    st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
+if "current_match" not in st.session_state: st.session_state.current_match = []
+if "match_name" not in st.session_state: st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
 
-# ---------------------- 侧边栏 ----------------------
 with st.sidebar:
     st.markdown("<h2 style='color:#fef3c7!important;border-left:5px solid #d97706!important;'>🧭 控制中心</h2>", unsafe_allow_html=True)
     mode = st.radio("请选择视窗模式", ["🎯 新比赛录入", "📜 历史比赛查询", "📈 选手数据看板"])
@@ -213,7 +118,7 @@ if mode == "🎯 新比赛录入":
     with st.sidebar:
         st.markdown("<hr style='border-color:rgba(255,255,255,0.1)'/>", unsafe_allow_html=True)
         st.subheader("📝 实时对局登记")
-        st.session_state.match_name = st.text_input("比赛名称名称", value=st.session_state.match_name)
+        st.session_state.match_name = st.text_input("比赛名称", value=st.session_state.match_name)
         match_date = st.date_input("选择比赛日期", value=datetime.now())
         date_str = match_date.strftime("%Y%m%d")
         round_num = len(st.session_state.current_match) + 1
@@ -238,11 +143,26 @@ if mode == "🎯 新比赛录入":
         dealer_multi = DEALER_LEVELS[dealer_level]
         
         hu_type = st.selectbox("本局结果判定", HU_TYPES)
-        fan = 0; hu_player = ""; pao_player = ""
+        fan = 0; hu_player = ""; pao_player = ""; selected_patterns_str = "/"
+        
+        # 💡 【核心重构】：多选复合牌型，自动检索对应番数并累加
         if hu_type != "流局":
-            fan = st.number_input("胡牌番数", min_value=1, value=1)
             hu_player = st.selectbox("胡牌获胜选手", player_names, index=0)
             hu_pos = player_to_pos[hu_player]
+            
+            # 多选牌型组件
+            selected_patterns = st.multiselect("选择胡牌牌型 (可多选组合)", ALL_HU_TYPES_OPTIONS)
+            if selected_patterns:
+                # 全自动计算累加总番数
+                fan = sum([HU_TYPE_TO_FAN[pat] for pat in selected_patterns])
+                # 提取牌型纯文本名字（去掉括号番数），以便清爽地存入Excel
+                selected_patterns_str = " + ".join([pat.split(" (")[0] for pat in selected_patterns])
+            else:
+                fan = 0
+                selected_patterns_str = "普通胡"
+                
+            st.caption(f"🔮 智能精算总计：**{fan} 番**")
+            
             if hu_type == "放炮":
                 pao_candidates = [p for p in player_names if p != hu_player]
                 pao_player = st.selectbox("点炮选手", pao_candidates, index=0)
@@ -252,7 +172,7 @@ if mode == "🎯 新比赛录入":
         with col1:
             if st.button("✅ 提交本局", type="primary", use_container_width=True):
                 scores = {"东风": 0, "南风": 0, "西风": 0, "北风": 0}
-                if hu_type != "流局":
+                if hu_type != "流局" and fan > 0:
                     other_pos = [p for p in POSITION_ORDER if p != hu_pos]
                     dealer_hu = (hu_pos == current_dealer_pos)
                     if hu_type == "自摸":
@@ -269,10 +189,13 @@ if mode == "🎯 新比赛录入":
                             scores[hu_pos] += base
                 
                 pao_display = pao_player if hu_type == "放炮" else "/" if hu_type == "自摸" else ""
+                
+                # 💡 【核心重构】：在表格数据结构中紧跟“本局结果”插入“胡牌牌型”
                 round_data = {
-                    "局号": round_num, "庄家": current_dealer_player, "连庄次数": dealer_level,
-                    "庄倍数": dealer_multi, "本局结果": hu_type, "胡牌选手": hu_player,
-                    "放炮选手": pao_display, "番数": fan if hu_type != "流局" else 0,
+                    "局号": round_num, "庄家": current_dealer_player, "连庄次数": dealer_level, "庄倍数": dealer_multi,
+                    "本局结果": hu_type, 
+                    "胡牌牌型": selected_patterns_str,  # ⭐ 新增字段
+                    "胡牌选手": hu_player, "放炮选手": pao_display, "番数": fan,
                     score_cols[0]: scores["东风"], score_cols[1]: scores["南风"],
                     score_cols[2]: scores["西风"], score_cols[3]: scores["北风"]
                 }
@@ -296,8 +219,7 @@ if mode == "🎯 新比赛录入":
                     total_scores = [df[col].sum() for col in score_cols]
                     rank_result = sorted(zip(player_names, total_scores), key=lambda x: x[1], reverse=True)
                     summary_row = pd.DataFrame([{
-                        "比赛名称": st.session_state.match_name,
-                        "比赛日期": match_date.strftime("%Y-%m-%d"),
+                        "比赛名称": st.session_state.match_name, "比赛日期": match_date.strftime("%Y-%m-%d"),
                         "第1名": rank_result[0][0], "第1名名次分": 5,
                         "第2名": rank_result[1][0], "第2名名次分": 3,
                         "第3名": rank_result[2][0], "第3名名次分": 2,
@@ -315,7 +237,7 @@ if mode == "🎯 新比赛录入":
                     
                     if save_github_db():
                         st.cache_data.clear()
-                        st.toast("🎉 数据云端存盘成功！", icon="✅")
+                        st.toast("🎉 数据和华丽牌型云端存盘成功！", icon="✅")
                         st.session_state.current_match = []
                         st.rerun()
         
@@ -324,27 +246,23 @@ if mode == "🎯 新比赛录入":
             st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
             st.rerun()
 
-    # 右侧展示区
+    # 右侧数据看板渲染
     df = pd.DataFrame(st.session_state.current_match)
     st.subheader("📊 本场时时计分榜")
     total_scores = [df[col].sum() for col in score_cols] if len(df) > 0 else [0,0,0,0]
-    
-    # 自动适应：PC端1行4列，手机端横向排不下时自动换行
     cols = st.columns(4)
     for i, (name, score) in enumerate(zip(player_names, total_scores)):
         cols[i].metric(label=f"👑 {name}", value=f"{score} Pts")
     
     st.markdown("<br/>", unsafe_allow_html=True)
-    
-    # 左右双栏：PC端并排，手机端上下排列
-    layout_col1, layout_col2 = st.columns([3, 2])
+    layout_col1, layout_col2 = st.columns([11, 7])
     with layout_col1:
-        st.subheader("📋 实时流水单细则")
+        st.subheader("📋 实时流水单细则 (含胡牌牌型)")
         if len(df) > 0:
             def color_score(val):
                 if isinstance(val, (int, float)):
                     color = "#16a34a" if val > 0 else "#dc2626" if val < 0 else "#6b7280"
-                    return f"color: {color}; font-weight: bold; font-size:14px;"
+                    return f"color: {color}; font-weight: bold;"
                 return ""
             styled_df = df.style.map(color_score, subset=score_cols)
             st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
@@ -358,10 +276,7 @@ if mode == "🎯 新比赛录入":
             trend_df["局号"] += 1
             trend_df = trend_df.melt(id_vars=["局号"], var_name="选手", value_name="累计积分")
             fig = px.line(trend_df, x="局号", y="累计积分", color="选手", markers=True, line_shape="spline")
-            fig.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=10, r=10, t=10, b=10), font=dict(color="#451a03")
-            )
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("📊 录入数据后将自动绘制波段走势图。")
@@ -369,8 +284,7 @@ if mode == "🎯 新比赛录入":
 # ---------------------- 📜 历史比赛查询 ----------------------
 elif mode == "📜 历史比赛查询":
     st.header("📜 历史对局封存卷轴")
-    with st.spinner("正在开启云端古籍..."):
-        db = load_github_db()
+    with st.spinner("正在开启云端古籍..."): db = load_github_db()
     summary_df = db["比赛汇总"]
     if len(summary_df) == 0:
         st.info("云端未发现历史封存记录")
@@ -395,9 +309,9 @@ elif mode == "📜 历史比赛查询":
                 cols[i].metric(label=name, value=f"{score} 分")
             
             st.markdown("<br/>", unsafe_allow_html=True)
-            q_col1, q_col2 = st.columns([3, 2])
+            q_col1, q_col2 = st.columns([11, 7])
             with q_col1:
-                st.subheader("📋 历史输赢逐局明细")
+                st.subheader("📋 历史输赢逐局明细 (含牌型记录)")
                 st.dataframe(match_detail, use_container_width=True, hide_index=True)
             with q_col2:
                 st.subheader("📈 历史复盘走势重现")
@@ -412,8 +326,7 @@ elif mode == "📜 历史比赛查询":
 
 # ---------------------- 📈 选手数据看板 ----------------------
 else:
-    with st.spinner("数据精算中..."):
-        db = load_github_db()
+    with st.spinner("数据精算中..."): db = load_github_db()
     summary_df = db["比赛汇总"].copy()
     
     if len(summary_df) == 0:
@@ -431,8 +344,7 @@ else:
                 p_score = row[f"第{r}名名次分"]
                 if pd.notna(p_name):
                     rows.append({
-                        "比赛日期": row["比赛日期"], "年度": row["年度"], 
-                        "季度": row["季度"], "月度": row["月度"],
+                        "比赛日期": row["比赛日期"], "年度": row["年度"], "季度": row["季度"], "月度": row["月度"],
                         "选手": p_name, "名次分": p_score
                     })
         all_scores_df = pd.DataFrame(rows)
@@ -461,21 +373,16 @@ else:
         st.dataframe(stats_output_df, use_container_width=True, hide_index=True)
         
         st.divider()
-        st.subheader("📈 全员天梯竞技积分演变动线（纵览全局）")
+        st.subheader("📈 全员天梯竞技积分演变动线")
         all_scores_df = all_scores_df.sort_values(by="比赛日期").reset_index(drop=True)
         all_scores_df["场次序号"] = all_scores_df.groupby("选手").cumcount() + 1
         
         chart_type = st.segmented_control("曲线显示切换", ["累计总分大盘走势", "单场天梯分波动"], default="累计总分大盘走势")
         if chart_type == "累计总分大盘走势":
             all_scores_df["展示分数"] = all_scores_df.groupby("选手")["名次分"].cumsum()
-            y_label = "天梯累计分"
         else:
             all_scores_df["展示分数"] = all_scores_df["名次分"]
-            y_label = "当场名次分"
             
         fig_players = px.line(all_scores_df, x="场次序号", y="展示分数", color="选手", markers=True, line_shape="spline")
-        fig_players.update_layout(
-            hovermode="x unified", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=15, r=15, t=15, b=15)
-        )
+        fig_players.update_layout(hovermode="x unified", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_players, use_container_width=True)
