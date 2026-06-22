@@ -14,16 +14,7 @@ DB_FILE = "麻坛所有比赛数据.xlsx"
 # 👑 终极直接授权：把你的 Token 密文用双引号包起来，直接赋值
 GITHUB_TOKEN = "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"
 
-# ====================== 🀄 核心牌型番数精算字典 ======================
-
-# 👑 智能本地密匙兼容技术：直接把你的 Token 字符串赋值给变量
-GITHUB_TOKEN = "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"
-else:
-    # 📝 如果不想折腾 secrets.toml，可以直接在下面双引号里贴上你的真实 GitHub Token！
-    # 例如：GITHUB_TOKEN = "ghp_xxxxxxxxxxxxxxxxxxxx"
-    GITHUB_TOKEN = "这里直接贴上你的GitHubToken密文"
-
-# ====================== 🀄 核心牌型番数精算字典 ======================
+## ====================== 🀄 核心牌型番数精算字典 ======================
 HU_CARDS_DICT = {
     "50 番 顶级天骄牌型": {
         "大四喜": 50, "大三元": 50, "孔雀东南飞": 50, "西北下大雪": 50, "天胡": 50, "地胡": 50, "四暗刻": 50, 
