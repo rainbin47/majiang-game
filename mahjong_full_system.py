@@ -50,29 +50,63 @@ HU_CARDS_DICT = {
 }
 
 # ====================== GitHub 读写底层函数 ======================
+# ====================== 🔄 本地与 GitHub 强行同步底层函数 ======================
 def load_github_db():
+    """启动时：尝试从云端下载最新数据并同步到本地；若失败或无网，则直接读取本地"""
     url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/{DB_FILE}"
-    res = requests.get(url)
-    with open(DB_FILE, "wb") as f:
-        f.write(res.content)
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+    
+    # 1. 尝试从云端抓取最新文件并覆盖本地
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            with open(DB_FILE, "wb") as f:
+                f.write(res.content)
+            # st.toast("🔄 已自动从云端同步最新数据到本地！") # 如果觉得烦可以注释掉
+    except Exception as e:
+        pass # 离线或网络不好时，不报错，直接进入下一步读取本地
+        
+    # 2. 如果本地连文件都还没有，初始化一个空架构
+    if not os.path.exists(DB_FILE):
+        with pd.ExcelWriter(DB_FILE) as writer:
+            pd.DataFrame(columns=["比赛名称", "比赛日期", "第1名", "第1名名次分", "第2名", "第2名名次分", "第3名", "第3名名次分", "第4名", "第4名名次分"]).to_excel(writer, sheet_name="比赛汇总", index=False)
+            
+    # 3. 最终严格读取本地文件返回
     return pd.read_excel(DB_FILE, sheet_name=None)
 
 def save_github_db():
-    with open(DB_FILE, "rb") as f:
-        content = base64.b64encode(f.read()).decode()
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_FILE}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    res = requests.get(url, headers=headers)
-    if res.status_code != 200:
-        st.error(f"获取文件失败：{res.json()['message']}")
+    """保存时：本地数据已经写好，现在强行把本地 Excel 文件上传覆盖线上 GitHub"""
+    if not os.path.exists(DB_FILE):
+        st.error("❌ 未找到本地数据文件，无法同步至云端！")
         return False
-    sha = res.json()["sha"]
-    res = requests.put(url, headers=headers, json={
-        "message": f"更新比赛数据 {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        "content": content,
-        "sha": sha
-    })
-    return res.status_code in [200, 201]
+        
+    try:
+        # 读取刚刚存好的本地文件
+        with open(DB_FILE, "rb") as f:
+            content = base64.b64encode(f.read()).decode()
+            
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_FILE}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        
+        # 获取线上文件的 SHA 标记，用于覆盖
+        res = requests.get(url, headers=headers, timeout=5)
+        sha = None
+        if res.status_code == 200:
+            sha = res.json()["sha"]
+            
+        # 强行 PUT 上传，有 sha 就覆盖，没 sha 就新建
+        payload = {
+            "message": f"💻 本地数据强行覆盖更新 {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "content": content
+        }
+        if sha:
+            payload["sha"] = sha
+            
+        res = requests.put(url, headers=headers, json=payload, timeout=5)
+        return res.status_code in [200, 201]
+    except Exception as e:
+        st.error(f"☁️ 云端同步失败（已保存在本地）：{str(e)}")
+        return False
 
 # ====================== 👑 全局UI奢华重构样式注入 ======================
 st.set_page_config(page_title="雀神风云录 · 智能席位版", page_icon="🀄", layout="wide", initial_sidebar_state="expanded")
