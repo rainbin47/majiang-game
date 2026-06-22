@@ -12,45 +12,36 @@ GITHUB_REPO = "rainbin47/majiang-game"
 GITHUB_TOKEN = st.secrets["github_token"]
 DB_FILE = "麻坛所有比赛数据.xlsx"
 
-# ====================== 🀄 核心牌型番数精算词典 ======================
+# ====================== 🀄 核心牌型番数精算字典 ======================
 HU_CARDS_DICT = {
-    "50 番": {
+    "50 番 顶级天骄牌型": {
         "大四喜": 50, "大三元": 50, "孔雀东南飞": 50, "九莲宝灯": 50, "四暗刻": 50, 
         "连七对": 50, "十三幺": 50, "清老头": 50, "绿一色": 50, "字一色": 50
     },
-    "30 番": {
+    "30 番 惊世豪强牌型": {
         "小四喜": 30, "小三元": 30, "孔雀东南飞（小）": 30, "混老头": 30
     },
-    "20 番": {
+    "20 番 纵横捭阖牌型": {
         "清一色": 20, "清带幺": 20, "一色四步高": 20, "一色四同顺": 20, "一色四节高": 20, 
         "三杠子": 20, "七小对": 20, "全将碰": 20
     },
-    "10 番": {
+    "10 番 名震四海牌型": {
         "五门齐": 10, "一色清龙": 10, "一色步步高高": 10, "一色节节高": 10, "两头蛇": 10, 
         "十三不靠": 10, "混一色": 10, "混带幺": 10, "海底捞月": 10, "杠上开花": 10, 
         "杠上炮": 10, "抢杠": 10, "全中": 10, "全大": 10, "全小": 10, "无番胡": 10, 
         "碰碰胡": 10, "三连刻": 10, "三色三同刻": 10, "全求人": 10
     },
-    "5 番": {
+    "5 番 略展身手牌型": {
         "门清自摸": 5, "小于五": 5, "大于五": 5, "三色花龙": 5, "三色三同顺": 5, "三色三节高": 5
     },
-    "2 番": {
+    "2 番 积少成多牌型": {
         "自摸": 2, "断幺九": 2, "幺九刻": 2, "暗杠": 2, "单吊边嵌": 2
     },
-    "1 番": {
+    "1 番 风起青萍牌型": {
         "门前清": 1, "缺字": 1, "缺一门": 1, "明杠": 1, "姊妹花": 1, 
         "连六": 1, "单吊": 1, "圈风刻": 1, "门风刻": 1, "258将": 1
     }
 }
-
-# 扁平化映射表，方便快速查找和渲染多选框
-ALL_HU_TYPES_OPTIONS = []
-HU_TYPE_TO_FAN = {}
-for category, cards in HU_CARDS_DICT.items():
-    for name, score in cards.items():
-        display_name = f"{name} ({score}番)"
-        ALL_HU_TYPES_OPTIONS.append(display_name)
-        HU_TYPE_TO_FAN[display_name] = score
 
 # ====================== GitHub 读写底层函数 ======================
 def load_github_db():
@@ -77,28 +68,64 @@ def save_github_db():
     })
     return res.status_code in [200, 201]
 
-# ====================== 全局UI奢华重构样式 ======================
-st.set_page_config(page_title="雀神风云录 · 智能番数精算版", page_icon="🀄", layout="wide", initial_sidebar_state="expanded")
+# ====================== 👑 全局UI奢华重构样式注入 ======================
+st.set_page_config(page_title="雀神风云录 · 智能席位版", page_icon="🀄", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
+/* 全局雅致背景 */
 .stApp { background: linear-gradient(135deg, #f9f8f6 0%, #f1efe9 50%, #e6e3da 100%) !important; font-family: "SF Pro Display", sans-serif; }
 .big-title { background: linear-gradient(135deg, #7c1a1a 0%, #b91c1c 50%, #d97706 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; font-size: 2.8rem; font-weight: 900; padding: 20px 0 5px 0; filter: drop-shadow(0px 4px 10px rgba(185,28,28,0.15)); }
 .sub-title { text-align: center; color: #78350f; font-size: 1rem; letter-spacing: 4px; margin-bottom: 35px; opacity: 0.8; }
+
+/* 侧边栏及高级卡片 */
 [data-testid="stSidebar"] { background: linear-gradient(180deg, #1e1b18 0%, #2e2520 100%) !important; border-right: 1px solid rgba(217, 119, 6, 0.2); }
 [data-testid="stSidebar"] p, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label { color: #f3f4f6 !important; }
 div[data-testid="metric-container"], .custom-card { background: rgba(255, 255, 255, 0.75) !important; backdrop-filter: blur(12px); border-radius: 20px !important; padding: 24px 20px !important; border: 1px solid rgba(255, 255, 255, 0.6) !important; box-shadow: 0 10px 30px rgba(46, 37, 32, 0.05) !important; transition: all 0.4s ease; }
 div[data-testid="metric-container"]:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(185, 28, 28, 0.12) !important; border: 1px solid rgba(217, 119, 6, 0.4) !important; }
+
+/* 奢华流光按钮 */
 .stButton>button { background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%) !important; color: #fef3c7 !important; border-radius: 14px !important; border: 1px solid #b45309 !important; font-weight: 600 !important; padding: 12px 24px !important; box-shadow: 0 4px 15px rgba(153,27,27,0.25) !important; width: 100%; transition: all 0.3s; }
 .stButton>button:hover { background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(185,28,28,0.4) !important; }
+
+/* 数据表格美化 */
 .stDataFrame { border-radius: 16px !important; overflow: hidden !important; box-shadow: 0 8px 25px rgba(0,0,0,0.04) !important; background: white; }
 h2, h3 { color: #451a03 !important; font-weight: 800 !important; border-left: 5px solid #b91c1c !important; padding-left: 14px !important; margin-top: 35px !important; margin-bottom: 22px !important; }
-@media (max-width: 768px) { .big-title { font-size: 1.9rem !important; } .stButton>button { padding: 14px 20px !important; } }
+
+/* 🌟 【核心重构UI】: 复选框平铺矩阵的高级卡片质感 */
+div[data-testid="stCheckbox"] {
+    background: rgba(255, 255, 255, 0.65) !important;
+    border: 1px solid rgba(46, 37, 32, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 10px 16px !important;
+    margin-bottom: 8px !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* 鼠标悬浮反馈 */
+div[data-testid="stCheckbox"]:hover {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: #b91c1c !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(185, 28, 28, 0.08) !important;
+}
+/* 当复选框内部的input被选中时，让卡片带上优雅的淡红框（通过Streamlit底层结构模拟高亮） */
+div[data-testid="stCheckbox"] label p {
+    font-weight: 600 !important;
+    color: #451a03 !important;
+}
+
+/* 针对手机端和PC端的矩阵自适应 */
+@media (max-width: 768px) {
+    .big-title { font-size: 1.9rem !important; }
+    .stButton>button { padding: 14px 20px !important; }
+    div[data-testid="stCheckbox"] { padding: 12px 10px !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="big-title">🀄 雀神风云录</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">— 尊享番数智能精算大盘 —</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">— 尊享矩阵点兵数据大盘 —</div>', unsafe_allow_html=True)
 
 MAX_ROUNDS = 99
 POSITION_ORDER = ["东风", "南风", "西风", "北风"]
@@ -145,34 +172,62 @@ if mode == "🎯 新比赛录入":
         hu_type = st.selectbox("本局结果判定", HU_TYPES)
         fan = 0; hu_player = ""; pao_player = ""; selected_patterns_str = "/"
         
-        # 💡 【核心重构】：多选复合牌型，自动检索对应番数并累加
         if hu_type != "流局":
             hu_player = st.selectbox("胡牌获胜选手", player_names, index=0)
             hu_pos = player_to_pos[hu_player]
-            
-            # 多选牌型组件
-            selected_patterns = st.multiselect("选择胡牌牌型 (可多选组合)", ALL_HU_TYPES_OPTIONS)
-            if selected_patterns:
-                # 全自动计算累加总番数
-                fan = sum([HU_TYPE_TO_FAN[pat] for pat in selected_patterns])
-                # 提取牌型纯文本名字（去掉括号番数），以便清爽地存入Excel
-                selected_patterns_str = " + ".join([pat.split(" (")[0] for pat in selected_patterns])
-            else:
-                fan = 0
-                selected_patterns_str = "普通胡"
-                
-            st.caption(f"🔮 智能精算总计：**{fan} 番**")
-            
             if hu_type == "放炮":
                 pao_candidates = [p for p in player_names if p != hu_player]
                 pao_player = st.selectbox("点炮选手", pao_candidates, index=0)
                 pao_pos = player_to_pos[pao_player]
+
+    # 右侧展示区与牌型选择矩阵
+    df = pd.DataFrame(st.session_state.current_match)
+    
+    # 🌟 【核心交互升级】：当不是流局时，在正中央渲染“全平铺牌型点兵席”
+    if hu_type != "流局":
+        st.markdown("### 🀄 雀神点兵 · 牌型选择矩阵")
+        st.caption("✨ 请直接勾选下方对应的对局牌型（可多选组合），系统会全自动精算累计总番数：")
         
+        checked_patterns = []
+        # 将常用的小番数默认展开，高大番数默认折叠以保持界面档次感
+        for title, cards in HU_CARDS_DICT.items():
+            is_expanded = "1 番" in title or "2 番" in title or "5 番" in title or "10 番" in title
+            with st.expander(f"✨ {title}", expanded=is_expanded):
+                # 核心响应式自适应网格：PC端4列，手机端自动变2列
+                cols_matrix = st.columns(4)
+                idx = 0
+                for name, score in cards.items():
+                    with cols_matrix[idx % 4]:
+                        if st.checkbox(f"{name} ({score}番)", key=f"chk_{title}_{name}"):
+                            checked_patterns.append((name, score))
+                    idx += 1
+        
+        # 实时精算反馈区块
+        if checked_patterns:
+            fan = sum([item[1] for item in checked_patterns])
+            selected_patterns_str = " + ".join([item[0] for item in checked_patterns])
+            st.markdown(f"""
+            <div class='custom-card' style='background: rgba(185, 28, 28, 0.05) !important; border: 1px solid rgba(185, 28, 28, 0.2) !important; margin-top:15px;'>
+                <span style='color:#7f1d1d; font-size:16px;'>🔮 当前已选牌型：</span> <b style='color:#b91c1c; font-size:16px;'>{selected_patterns_str}</b><br/>
+                <span style='color:#7f1d1d; font-size:16px;'>💰 智能算法精算总计：</span> <b style='color:#b91c1c; font-size:22px;'>{fan} 番</b>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            fan = 0
+            selected_patterns_str = "普通胡"
+            st.markdown(f"""
+            <div class='custom-card' style='background: rgba(107, 114, 128, 0.05) !important; border: 1px solid rgba(107, 114, 128, 0.2) !important; margin-top:15px;'>
+                <span style='color:#374151; font-size:15px;'>💡 暂未勾选任何特殊牌型，默认以 <b>普通胡 (0番)</b> 进行封盘记账。</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # 提交按钮放入侧边栏或主界面底部均可，此处将其置于侧边栏下方以便两端操作
+    with st.sidebar:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ 提交本局", type="primary", use_container_width=True):
                 scores = {"东风": 0, "南风": 0, "西风": 0, "北风": 0}
-                if hu_type != "流局" and fan > 0:
+                if hu_type != "流局" and fan >= 0:
                     other_pos = [p for p in POSITION_ORDER if p != hu_pos]
                     dealer_hu = (hu_pos == current_dealer_pos)
                     if hu_type == "自摸":
@@ -190,11 +245,10 @@ if mode == "🎯 新比赛录入":
                 
                 pao_display = pao_player if hu_type == "放炮" else "/" if hu_type == "自摸" else ""
                 
-                # 💡 【核心重构】：在表格数据结构中紧跟“本局结果”插入“胡牌牌型”
                 round_data = {
                     "局号": round_num, "庄家": current_dealer_player, "连庄次数": dealer_level, "庄倍数": dealer_multi,
                     "本局结果": hu_type, 
-                    "胡牌牌型": selected_patterns_str,  # ⭐ 新增字段
+                    "胡牌牌型": selected_patterns_str,  # ⭐ 新增并完美对齐的字段
                     "胡牌选手": hu_player, "放炮选手": pao_display, "番数": fan,
                     score_cols[0]: scores["东风"], score_cols[1]: scores["南风"],
                     score_cols[2]: scores["西风"], score_cols[3]: scores["北风"]
@@ -246,9 +300,9 @@ if mode == "🎯 新比赛录入":
             st.session_state.match_name = f"比赛_{datetime.now().strftime('%Y%m%d')}"
             st.rerun()
 
-    # 右侧数据看板渲染
-    df = pd.DataFrame(st.session_state.current_match)
-    st.subheader("📊 本场时时计分榜")
+    # 下方实时计分看板与流水单
+    st.markdown("---")
+    st.subheader("📊 本场实时计分大盘")
     total_scores = [df[col].sum() for col in score_cols] if len(df) > 0 else [0,0,0,0]
     cols = st.columns(4)
     for i, (name, score) in enumerate(zip(player_names, total_scores)):
@@ -265,9 +319,9 @@ if mode == "🎯 新比赛录入":
                     return f"color: {color}; font-weight: bold;"
                 return ""
             styled_df = df.style.map(color_score, subset=score_cols)
-            st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
+            st.dataframe(styled_df, use_container_width=True, hide_index=True, height=400)
         else:
-            st.info("💡 虚位以待，请在左侧侧边栏录入第一局对局数据。")
+            st.info("💡 虚位以待，请在左侧侧边栏或上方勾选牌型录入第一局对局数据。")
             
     with layout_col2:
         st.subheader("📈 本场积分演变动向")
